@@ -1,1 +1,353 @@
+from collections import deque
+import random
+import time
+import statistics
+import tracemalloc
 
+graph = {}
+matrix = []
+
+def buat_graph(jumlah_node):
+
+    global graph
+    global matrix
+
+    graph = {}
+
+    for i in range(jumlah_node):
+        graph[i] = []
+
+    # Membuat graph acak
+    for i in range(jumlah_node):
+
+        banyak_jalan = random.randint(2,4)
+
+        while len(graph[i]) < banyak_jalan:
+
+            tujuan = random.randint(0,jumlah_node-1)
+
+            if tujuan != i and tujuan not in graph[i]:
+
+                graph[i].append(tujuan)
+
+                if i not in graph[tujuan]:
+                    graph[tujuan].append(i)
+
+    # Membuat adjacency matrix
+    matrix = [[0 for _ in range(jumlah_node)] for _ in range(jumlah_node)]
+
+    for node in graph:
+        for tetangga in graph[node]:
+            matrix[node][tetangga] = 1
+
+def tampil_list():
+
+    print("===== ADJACENCY LIST =====")
+
+    for node in graph:
+        print(f"{node} -> {graph[node]}")
+
+def tampil_matrix():
+
+    print("===== ADJACENCY MATRIX =====")
+
+    batas = min(20,len(matrix))
+
+    print("    ",end="")
+
+    for i in range(batas):
+        print(f"{i:3}",end="")
+
+    print()
+
+    for i in range(batas):
+
+        print(f"{i:3}",end=" ")
+
+        for j in range(batas):
+
+            print(matrix[i][j],end="  ")
+
+        print()
+
+    if len(matrix)>20:
+        print("(Matrix dipotong, hanya 20x20 pertama yang ditampilkan)")
+
+def pilih_skala():
+
+    print("===== PILIH SKALA DATA =====")
+    print("1. 50 Node")
+    print("2. 100 Node")
+    print("3. 250 Node")
+    print("4. 500 Node")
+
+    pilih=input("Pilihan : ")
+
+    if pilih=="1":
+        return 50
+
+    elif pilih=="2":
+        return 100
+
+    elif pilih=="3":
+        return 250
+
+    elif pilih=="4":
+        return 500
+
+    else:
+        print("Pilihan salah")
+        return None
+    
+def bfs(start, goal):
+
+    tracemalloc.start()
+    waktu_awal = time.perf_counter()
+
+    queue = deque([[start]])
+    visited = set()
+
+    node_diperiksa = 0
+
+    while queue:
+
+        path = queue.popleft()
+        node = path[-1]
+
+        node_diperiksa += 1
+
+        if node == goal:
+
+            waktu_akhir = time.perf_counter()
+            current, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+
+            return {
+                "jalur": path,
+                "panjang": len(path)-1,
+                "node": node_diperiksa,
+                "waktu": (waktu_akhir-waktu_awal)*1000,
+                "memori": peak
+            }
+
+        if node not in visited:
+
+            visited.add(node)
+
+            for tetangga in graph[node]:
+
+                if tetangga not in visited:
+
+                    jalur_baru = list(path)
+                    jalur_baru.append(tetangga)
+
+                    queue.append(jalur_baru)
+
+    tracemalloc.stop()
+    return None
+
+def dfs(start, goal):
+
+    tracemalloc.start()
+    waktu_awal = time.perf_counter()
+
+    stack = [[start]]
+    visited = set()
+
+    node_diperiksa = 0
+
+    while stack:
+
+        path = stack.pop()
+        node = path[-1]
+
+        node_diperiksa += 1
+
+        if node == goal:
+
+            waktu_akhir = time.perf_counter()
+            current, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+
+            return {
+                "jalur": path,
+                "panjang": len(path)-1,
+                "node": node_diperiksa,
+                "waktu": (waktu_akhir-waktu_awal)*1000,
+                "memori": peak
+            }
+
+        if node not in visited:
+
+            visited.add(node)
+
+            for tetangga in reversed(graph[node]):
+
+                if tetangga not in visited:
+
+                    jalur_baru = list(path)
+                    jalur_baru.append(tetangga)
+
+                    stack.append(jalur_baru)
+
+    tracemalloc.stop()
+    return None
+
+def uji_algoritma(metode, jumlah_uji=30):
+
+    waktu = []
+    node = []
+    memori = []
+
+    for i in range(jumlah_uji):
+
+        awal = random.randint(0, len(graph)-1)
+        tujuan = random.randint(0, len(graph)-1)
+
+        while tujuan == awal:
+            tujuan = random.randint(0, len(graph)-1)
+
+        if metode == "BFS":
+            hasil = bfs(awal, tujuan)
+
+        else:
+            hasil = dfs(awal, tujuan)
+
+        if hasil is not None:
+            waktu.append(hasil["waktu"])
+            node.append(hasil["node"])
+            memori.append(hasil["memori"])
+
+    return {
+
+        "rerata_waktu": statistics.mean(waktu),
+
+        "std": statistics.stdev(waktu) if len(waktu)>1 else 0,
+
+        "rerata_node": statistics.mean(node),
+
+        "rerata_memori": statistics.mean(memori)
+
+    }
+
+def menu_bfs():
+
+    hasil = uji_algoritma("BFS")
+
+    print("========== HASIL BFS ==========")
+
+    print("Rerata Waktu     : %.4f ms" % hasil["rerata_waktu"])
+
+    print("Standar Deviasi  : %.4f ms" % hasil["std"])
+
+    print("Rerata Node      : %.2f" % hasil["rerata_node"])
+
+    print("Rerata Memori    : %.0f bytes" % hasil["rerata_memori"])
+
+def menu_dfs():
+
+    hasil = uji_algoritma("DFS")
+
+    print("========== HASIL DFS ==========")
+
+    print("Rerata Waktu     : %.4f ms" % hasil["rerata_waktu"])
+
+    print("Standar Deviasi  : %.4f ms" % hasil["std"])
+
+    print("Rerata Node      : %.2f" % hasil["rerata_node"])
+
+    print("Rerata Memori    : %.0f bytes" % hasil["rerata_memori"])
+
+def bandingkan():
+
+    hasil_bfs = uji_algoritma("BFS")
+    hasil_dfs = uji_algoritma("DFS")
+
+    print("================ HASIL PERBANDINGAN ================\n")
+
+    print("{:<25}{:<15}{:<15}".format("Parameter","BFS","DFS"))
+    print("-"*55)
+
+    print("{:<25}{:<15.4f}{:<15.4f}".format(
+        "Rerata Waktu (ms)",
+        hasil_bfs["rerata_waktu"],
+        hasil_dfs["rerata_waktu"]
+    ))
+
+    print("{:<25}{:<15.4f}{:<15.4f}".format(
+        "Standar Deviasi",
+        hasil_bfs["std"],
+        hasil_dfs["std"]
+    ))
+
+    print("{:<25}{:<15.2f}{:<15.2f}".format(
+        "Rerata Node",
+        hasil_bfs["rerata_node"],
+        hasil_dfs["rerata_node"]
+    ))
+
+    print("{:<25}{:<15.0f}{:<15.0f}".format(
+        "Rerata Memori",
+        hasil_bfs["rerata_memori"],
+        hasil_dfs["rerata_memori"]
+    ))
+
+while True:
+
+    print("======================================")
+    print(" SISTEM PENCARIAN RUTE ANTAR GEDUNG")
+    print("======================================")
+    print("1. Uji BFS")
+    print("2. Uji DFS")
+    print("3. Bandingkan BFS dan DFS")
+    print("4. Keluar")
+
+    menu = input("Pilih menu : ")
+
+    if menu == "1":
+
+        skala = pilih_skala()
+
+        if skala:
+            buat_graph(skala)
+
+            print("Graph berhasil dibuat!")
+            tampil_list()
+            tampil_matrix()
+
+            menu_bfs()
+
+    elif menu == "2":
+
+        skala = pilih_skala()
+
+        if skala:
+            buat_graph(skala)
+
+            print("Graph berhasil dibuat!")
+            tampil_list()
+            tampil_matrix()
+
+            menu_dfs()
+
+    elif menu == "3":
+
+        skala = pilih_skala()
+
+        if skala:
+            buat_graph(skala)
+
+            print("Graph berhasil dibuat!")
+            tampil_list()
+            tampil_matrix()
+
+            bandingkan()
+
+    elif menu == "4":
+
+        print("Terima kasih Semester 2 ")
+        break
+
+    else:
+
+        print("Menu tidak tersedia.")
